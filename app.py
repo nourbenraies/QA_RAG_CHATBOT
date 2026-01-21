@@ -21,8 +21,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_Key")
 st.set_page_config(page_title="QA_ Chatbot", layout="wide")
 st.title("Bonjour ! Veuillez d’abord importer vos documents PDF pour commencer.")
 
-# --- 1. Gestionnaires d'affichage (Callbacks) ---
-# Ces classes permettent d'afficher le texte qui s'écrit petit à petit et les sources
+# Gestionnaires d'affichage 
 
 class StreamHandler(BaseCallbackHandler):
     """Gère l'affichage du texte en streaming (effet machine à écrire)"""
@@ -41,24 +40,22 @@ class PostMessageHandler(BaseCallbackHandler):
         self.sources = []
 
     def on_retriever_end(self, documents, **kwargs):
-        # Quand le retriever a fini, on récupère les documents trouvés
         for d in documents:
             metadata = {
                 "source": os.path.basename(d.metadata.get("source", "Inconnu")),
                 "page": d.metadata.get("page", 0),
-                "content": d.page_content[:200] + "..." # Aperçu du texte
+                "content": d.page_content[:200] + "..." 
             }
             self.sources.append(metadata)
 
     def on_llm_end(self, response, **kwargs):
-        # Quand le LLM a fini, on affiche un tableau avec les sources
         if self.sources:
             with self.msg_container:
                 st.markdown("---")
                 st.markdown("**🔍 Sources utilisées :**")
                 st.dataframe(pd.DataFrame(self.sources[:3]), hide_index=True)
 
-# --- 2. Initialisation des Ressources (Cache) ---
+# Initialisation des Ressources
 
 @st.cache_resource
 def get_embedding_model():
@@ -69,7 +66,7 @@ embeddings_model = get_embedding_model()
 if "retriever" not in st.session_state:
     st.session_state.retriever = None
 
-# --- 3. Sidebar : Chargement des fichiers ---
+# Sidebar : Chargement des fichiers 
 with st.sidebar:
     st.header(" Vos Documents")
     uploaded_files = st.file_uploader("Upload PDF", type=["pdf"], accept_multiple_files=True)
@@ -84,13 +81,13 @@ with st.sidebar:
             st.session_state.retriever = retriever
             st.success("Documents indexés avec succès !")
 
-# --- 4. Logique du Chatbot ---
+# Logique du Chatbot 
 
 # Si aucun document n'est chargé, on arrête l'affichage ici
 if not st.session_state.retriever:
     st.stop()
 
-# Initialisation du LLM (Groq)
+# Initialisation du LLM 
 llm = ChatGroq(
     temperature=0,
     model_name="llama-3.1-8b-instant",
@@ -112,7 +109,6 @@ Question :
 """
 prompt = ChatPromptTemplate.from_template(qa_template)
 
-# Fonction pour formater les docs en string
 def format_docs(docs):
     return "\n\n".join([d.page_content for d in docs])
 
@@ -126,9 +122,8 @@ rag_chain = (
     | llm
 )
 
-# --- 5. Interface de Chat ---
+# Interface de Chat 
 
-# Gestion de l'historique des messages
 msg_history = StreamlitChatMessageHistory(key="langchain_messages")
 
 if len(msg_history.messages) == 0:
@@ -147,7 +142,6 @@ if user_question := st.chat_input("Votre question..."):
 
     # 2. Générer la réponse de l'IA
     with st.chat_message("ai"):
-        # Conteneurs pour le stream et les sources
         response_placeholder = st.empty()
         sources_placeholder = st.container()
         
